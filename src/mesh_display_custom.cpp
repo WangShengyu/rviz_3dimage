@@ -88,12 +88,9 @@ MeshDisplayCustom::MeshDisplayCustom()
       "Image topic to subscribe to.",
       this, SLOT(updateDisplayImages()));
   // TODO(lucasw) add controls to switch which plane to align to?
-  tf_frame_property_ = new TfFrameProperty("Quad Frame", "map",
+  tf_frame_property_ = new TfFrameProperty("Quad Frame", "my_frame",
       "Align the image quad to the xy plane of this tf frame",
       this, 0, true);
-
-  meters_per_pixel_property_ = new FloatProperty("Meters per pixel", 0.002,
-      "Rviz meters per image pixel.", this);
 }
 
 MeshDisplayCustom::~MeshDisplayCustom()
@@ -111,7 +108,6 @@ MeshDisplayCustom::~MeshDisplayCustom()
   // TODO(lucasw) clean up other things
   delete image_topic_property_;
   delete tf_frame_property_;
-  delete meters_per_pixel_property_;
 }
 
 void MeshDisplayCustom::onInitialize()
@@ -263,48 +259,29 @@ void MeshDisplayCustom::constructQuads(const sensor_msgs::Image::ConstPtr& image
     {
       frame = image->header.frame_id;
     }
-    // Lookup transform into fixed frame
+
     Ogre::Vector3 position;
     Ogre::Quaternion orientation;
-    if (!context_->getFrameManager()->getTransform(frame, ros::Time(0),
-        position, orientation))
-    {
-      std::stringstream ss;
-      ss << "Error transforming from fixed frame to frame " << frame.c_str();
-      throw ss.str();
-    }
 
-    mesh_origin.position.x = position[0];
-    mesh_origin.position.y = position[1];
-    mesh_origin.position.z = position[2];
-    mesh_origin.orientation.w = orientation[0];
-    mesh_origin.orientation.x = orientation[1];
-    mesh_origin.orientation.y = orientation[2];
-    mesh_origin.orientation.z = orientation[3];
+    // TODO: mesh size shall get from subscribe "image3d"
+    float width = 20;
+    float height = 80;
 
-    // Rotate from x-y to x-z plane:
-    Eigen::Affine3d trans_mat;
-    tf::poseMsgToEigen(mesh_origin, trans_mat);
-    trans_mat = trans_mat * Eigen::Quaterniond(0.70710678, -0.70710678f, 0.0f, 0.0f);
+    mesh_origin.position.x = 0;
+    mesh_origin.position.y = 0;
+    mesh_origin.position.z = -10;
 
-    Eigen::Quaterniond xz_quat(trans_mat.rotation());
+    Eigen::Quaterniond trans_rot(1, 0, 0, 0);
+    trans_rot = Eigen::Quaterniond(0.70710678, 0.0f, 0.0f, -0.70710678f)
+          * Eigen::Quaterniond(0.70710678, 0.70710678f, 0.0f, 0.0f);
+                
+
+    Eigen::Quaterniond xz_quat(trans_rot);
     mesh_origin.orientation.x = xz_quat.x();
     mesh_origin.orientation.y = xz_quat.y();
     mesh_origin.orientation.z = xz_quat.z();
     mesh_origin.orientation.w = xz_quat.w();
 
-    const float meters_per_pixel = meters_per_pixel_property_->getFloat();
-    float width = 1.0;
-    float height = 1.0;
-    if (meters_per_pixel > 0)
-    {
-      width = image->width * meters_per_pixel;
-      height = image->height * meters_per_pixel;
-    }
-    else
-    {
-      height = width * image->height / image->width;
-    }
 
     // set properties
     mesh_poses_[q] = mesh_origin;
@@ -431,7 +408,7 @@ void MeshDisplayCustom::subscribe()
   {
     try
     {
-      image_sub_ = nh_.subscribe(image_topic_property_->getTopicStd(),
+      image_sub_ = nh_.subscribe("image3d",
           1, &MeshDisplayCustom::updateImage, this);
       setStatus(StatusProperty::Ok, "Display Images Topic", "ok");
     }
@@ -639,9 +616,9 @@ void MeshDisplayCustom::updateCamera(bool update_image)
   // projection matrix
   float P[12] =
   {
-      1.0, 0.0, img_width / 2.0f, 0.0,
-      0.0, 1.0, img_height / 2.0f, 0.0,
-      0.0, 0.0, 1.0, 0.0
+    1.0, 0.0, img_width / 2.0f, 0.0,
+    0.0, 1.0, img_height / 2.0f, 0.0,
+    0.0, 0.0, 1.0, 0.0
   };
 
   // calculate projection matrix
@@ -731,14 +708,17 @@ void MeshDisplayCustom::processImage(int index, const sensor_msgs::Image& msg)
   cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::RGBA8);
 
   // update image alpha
-  // for(int i = 0; i < cv_ptr->image.rows; i++)
-  // {
-  //     for(int j = 0; j < cv_ptr->image.cols; j++)
-  //     {
-  //         cv::Vec4b& pixel = cv_ptr->image.at<cv::Vec4b>(i,j);
-  //         pixel[3] = image_alpha_property_->getFloat()*255;
-  //     }
-  // }
+  //for(int i = 0; i < cv_ptr->image.rows; i++)
+  //{
+  //  for(int j = 0; j < cv_ptr->image.cols; j++)
+  //  {
+  //    cv::Vec4b& pixel = cv_ptr->image.at<cv::Vec4b>(i,j);
+  //    pixel[0] = 255;
+  //    pixel[1] = 0;
+  //    pixel[2] = 0;
+  //    pixel[3] = 255;
+  //  }
+  //}
 
   // add completely white transparent border to the image so that it won't replicate colored pixels all over the mesh
   cv::Scalar value(255, 255, 255, 0);

@@ -12,7 +12,7 @@
 
   <group ns="camera1">
   <node pkg="tf" type="static_transform_publisher" name="camera_broadcaster"
-      args="0.1 0.1 -1.5 0 0 0 1 map camera1 30"
+      args="0.1 0.1 -1.5 0 0 0 1 my_frame camera1 30"
       if="$(arg use_static_tf)" />
   <node name="camera_info" pkg="rostopic" type="rostopic"
       args="pub camera_info sensor_msgs/CameraInfo
