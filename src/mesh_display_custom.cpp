@@ -264,7 +264,7 @@ void MeshDisplayCustom::constructQuads(const sensor_msgs::Image::ConstPtr& image
     Ogre::Quaternion orientation;
 
     // TODO: mesh size shall get from subscribe "image3d"
-    float width = 20;
+    float width = 40;
     float height = 80;
 
     mesh_origin.position.x = 0;
