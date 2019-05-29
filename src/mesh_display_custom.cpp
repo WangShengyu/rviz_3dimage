@@ -269,7 +269,7 @@ void MeshDisplayCustom::constructQuads(const sensor_msgs::Image::ConstPtr& image
 
     mesh_origin.position.x = 0;
     mesh_origin.position.y = 0;
-    mesh_origin.position.z = -10;
+    mesh_origin.position.z = 0;
 
     Eigen::Quaterniond trans_rot(1, 0, 0, 0);
     trans_rot = Eigen::Quaterniond(0.70710678, 0.0f, 0.0f, -0.70710678f)
