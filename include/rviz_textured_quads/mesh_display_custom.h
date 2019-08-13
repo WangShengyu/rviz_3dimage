@@ -87,78 +87,78 @@ class TfFrameProperty;
  */
 class MeshDisplayCustom: public rviz::Display,  public Ogre::RenderTargetListener, public Ogre::RenderQueueListener
 {
-  Q_OBJECT
+    Q_OBJECT
 public:
-  MeshDisplayCustom();
-  virtual ~MeshDisplayCustom();
+    MeshDisplayCustom();
+    virtual ~MeshDisplayCustom();
 
-  // Overrides from Display
-  virtual void onInitialize();
-  virtual void update(float wall_dt, float ros_dt);
-  virtual void reset();
+    // Overrides from Display
+    virtual void onInitialize();
+    virtual void update(float wall_dt, float ros_dt);
+    virtual void reset();
 
-  virtual void preRenderTargetUpdate(const Ogre::RenderTargetEvent& evt);
+    virtual void preRenderTargetUpdate(const Ogre::RenderTargetEvent& evt);
 
 private Q_SLOTS:
-  void updateMeshProperties();
-  void updateDisplayImages();
+    void updateMeshProperties();
+    void updateDisplayImages();
 
 protected:
-  virtual void load();
+    virtual void load();
 
-  // overrides from Display
-  virtual void onEnable();
-  virtual void onDisable();
+    // overrides from Display
+    virtual void onEnable();
+    virtual void onDisable();
 
-  // This is called by incomingMessage().
-  void processImage(int index, const sensor_msgs::Image& msg);
+    // This is called by incomingMessage().
+    void processImage(int index, const sensor_msgs::Image& msg);
 
-  virtual void subscribe();
-  virtual void unsubscribe();
+    virtual void subscribe();
+    virtual void unsubscribe();
 
 private:
-  void clear();
-  void updateCamera(bool update_image);
+    void clear();
+    void updateCamera(bool update_image);
 
-  void createProjector(int index);
-  void addDecalToMaterial(int index, const Ogre::String& matName);
+    void createProjector(int index);
+    void addDecalToMaterial(int index, const Ogre::String& matName);
 
-  void updateImage(const sensor_msgs::Image::ConstPtr& image);
-  void constructQuads(const sensor_msgs::Image::ConstPtr& images);
+    void updateImage(const sensor_msgs::Image::ConstPtr& image);
+    void constructQuads(const sensor_msgs::Image::ConstPtr& images);
 
-  shape_msgs::Mesh constructMesh(geometry_msgs::Pose mesh_origin, float width, float height, float border_size);
-  void clearStates();
+    shape_msgs::Mesh constructMesh(geometry_msgs::Pose mesh_origin, float width, float height, float border_size);
+    void clearStates();
 
-  RosTopicProperty* image_topic_property_;
-  TfFrameProperty* tf_frame_property_;
-  ros::Subscriber image_sub_;
+    RosTopicProperty* image_topic_property_;
+    TfFrameProperty* tf_frame_property_;
+    ros::Subscriber image_sub_;
 
-  std::vector<shape_msgs::Mesh> last_meshes_;
-  std::vector<geometry_msgs::Pose> mesh_poses_;
-  int img_widths_, img_heights_;
-  float physical_widths_, physical_heights_;
-  std::vector<float> border_colors_;
-  float border_sizes_;
+    std::vector<shape_msgs::Mesh> last_meshes_;
+    std::vector<geometry_msgs::Pose> mesh_poses_;
+    int img_widths_, img_heights_;
+    float physical_widths_, physical_heights_;
+    std::vector<float> border_colors_;
+    float border_sizes_;
 
-  ros::NodeHandle nh_;
+    ros::NodeHandle nh_;
 
-  bool new_image_;
-  sensor_msgs::Image::ConstPtr cur_image_;
-  std::vector<sensor_msgs::Image::ConstPtr> last_images_;
+    bool new_image_;
+    sensor_msgs::Image::ConstPtr cur_image_;
+    std::vector<sensor_msgs::Image::ConstPtr> last_images_;
 
-  Ogre::SceneNode* mesh_nodes_;
-  Ogre::ManualObject* manual_objects_;
-  Ogre::MaterialPtr mesh_materials_;
-  ROSImageTexture* textures_;
+    Ogre::SceneNode* mesh_nodes_;
+    Ogre::ManualObject* manual_objects_;
+    Ogre::MaterialPtr mesh_materials_;
+    ROSImageTexture* textures_;
 
-  Ogre::Frustum* decal_frustums_;
-  // need multiple filters (back, up, down, left, right)
-  std::vector<Ogre::Frustum*> filter_frustums_;
-  Ogre::SceneNode* projector_nodes_;
+    Ogre::Frustum* decal_frustums_;
+    // need multiple filters (back, up, down, left, right)
+    std::vector<Ogre::Frustum*> filter_frustums_;
+    Ogre::SceneNode* projector_nodes_;
 
-  RenderPanel* render_panel_;  // this is the active render panel
+    RenderPanel* render_panel_;  // this is the active render panel
 
-  boost::mutex mesh_mutex_;
+    boost::mutex mesh_mutex_;
 };
 
 }  // namespace rviz
