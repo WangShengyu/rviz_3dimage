@@ -50,7 +50,6 @@
 #include <rviz/properties/float_property.h>
 #include <rviz/properties/ros_topic_property.h>
 #include <rviz/properties/tf_frame_property.h>
-#include <rviz/render_panel.h>
 #include <rviz/robot/robot.h>
 #include <rviz/robot/tf_link_updater.h>
 #include <rviz/validate_floats.h>
@@ -76,13 +75,19 @@ bool validateFloats(const sensor_msgs::CameraInfo& msg)
 
 MeshDisplayCustom::MeshDisplayCustom()
     : Display()
-    , mesh_nodes_(NULL)
-    , textures_(NULL)
-    , projector_nodes_(NULL)
-    , manual_objects_(NULL)
-    , decal_frustums_(NULL)
-    , new_image_(false)
+    , mesh_nodes_()
+    , textures_()
+    , projector_nodes_()
+    , manual_objects_()
+    , decal_frustums_()
 {
+    manual_objects_.resize(2);
+    textures_.resize(2);
+    mesh_materials_.resize(2);
+    filter_frustums_.resize(2);
+    mesh_nodes_.resize(2);
+    projector_nodes_.resize(2);
+    decal_frustums_.resize(2);
     image_topic_property_ = new RosTopicProperty("Image Topic", "",
             QString::fromStdString(ros::message_traits::datatype<sensor_msgs::Image>()),
             "Image topic to subscribe to.",
@@ -97,10 +102,14 @@ MeshDisplayCustom::~MeshDisplayCustom()
 {
     unsubscribe();
     // TODO(lucasw) switch to smart pointers
-    delete manual_objects_;
-    delete decal_frustums_;
-    delete textures_;
-    delete mesh_nodes_;
+    for (size_t i = 0; i < manual_objects_.size(); i++) 
+    {
+        delete manual_objects_[i];
+        delete textures_[i];
+        delete mesh_nodes_[i];
+        delete decal_frustums_[i];
+    }
+    manual_objects_.clear();
 
     for (size_t i = 0; i < filter_frustums_.size(); ++i)
         delete filter_frustums_[i];
@@ -118,20 +127,19 @@ void MeshDisplayCustom::onInitialize()
 
 void MeshDisplayCustom::createProjector(int index)
 {
-    decal_frustums_ = new Ogre::Frustum();
+    decal_frustums_[index] = new Ogre::Frustum();
 
-    projector_nodes_ = scene_manager_->getRootSceneNode()->createChildSceneNode();
-    projector_nodes_->attachObject(decal_frustums_);
+    projector_nodes_[index] = scene_manager_->getRootSceneNode()->createChildSceneNode();
+    projector_nodes_[index]->attachObject(decal_frustums_[index]);
 
     Ogre::SceneNode* filter_node;
 
     // back filter
-    for (size_t i = 0; i < filter_frustums_.size(); ++i)
-        delete filter_frustums_[i];
-    filter_frustums_.push_back(new Ogre::Frustum());
-    filter_frustums_.back()->setProjectionType(Ogre::PT_ORTHOGRAPHIC);
-    filter_node = projector_nodes_->createChildSceneNode();
-    filter_node->attachObject(filter_frustums_.back());
+    // delete filter_frustums_[i];
+    filter_frustums_[index] = new Ogre::Frustum();
+    filter_frustums_[index]->setProjectionType(Ogre::PT_ORTHOGRAPHIC);
+    filter_node = projector_nodes_[index]->createChildSceneNode();
+    filter_node->attachObject(filter_frustums_[index]);
     filter_node->setOrientation(Ogre::Quaternion(Ogre::Degree(90), Ogre::Vector3::UNIT_Y));
 }
 
@@ -159,20 +167,17 @@ void MeshDisplayCustom::addDecalToMaterial(int index, const Ogre::String& matNam
     resource_manager.loadResourceGroup(resource_group_name);
 
     Ogre::TextureUnitState* tex_state = pass->createTextureUnitState();  // "Decal.png");
-    tex_state->setTextureName(textures_->getTexture()->getName());
-    tex_state->setProjectiveTexturing(true, decal_frustums_);
+    tex_state->setTextureName(textures_[index]->getTexture()->getName());
+    tex_state->setProjectiveTexturing(true, decal_frustums_[index]);
 
     tex_state->setTextureAddressingMode(Ogre::TextureUnitState::TAM_CLAMP);
     tex_state->setTextureFiltering(Ogre::FO_POINT, Ogre::FO_LINEAR, Ogre::FO_NONE);
     tex_state->setColourOperation(Ogre::LBO_REPLACE);  // don't accept additional effects
 
-    for (int i = 0; i < filter_frustums_.size(); i++)
-    {
-        tex_state = pass->createTextureUnitState("Decal_filter.png");
-        tex_state->setProjectiveTexturing(true, filter_frustums_[i]);
-        tex_state->setTextureAddressingMode(Ogre::TextureUnitState::TAM_CLAMP);
-        tex_state->setTextureFiltering(Ogre::TFO_NONE);
-    }
+    tex_state = pass->createTextureUnitState("Decal_filter.png");
+    tex_state->setProjectiveTexturing(true, filter_frustums_[index]);
+    tex_state->setTextureAddressingMode(Ogre::TextureUnitState::TAM_CLAMP);
+    tex_state->setTextureFiltering(Ogre::TFO_NONE);
 }
 
 shape_msgs::Mesh MeshDisplayCustom::constructMesh(geometry_msgs::Pose mesh_origin,
@@ -225,10 +230,13 @@ shape_msgs::Mesh MeshDisplayCustom::constructMesh(geometry_msgs::Pose mesh_origi
 
 void MeshDisplayCustom::clearStates()
 {
-    if (manual_objects_)
-        manual_objects_->clear();
+    const int num_quads = 2;
+    for (size_t i = 0; i < num_quads; i++)
+    {
+        if (manual_objects_[i])
+            manual_objects_[i]->clear();
+    }
 
-    const int num_quads = 1;
     // resize state vectors
     mesh_poses_.resize(num_quads);
 
@@ -243,11 +251,14 @@ void MeshDisplayCustom::clearStates()
     }
 }
 
-void MeshDisplayCustom::constructQuads(const sensor_msgs::Image::ConstPtr& image)
+void MeshDisplayCustom::constructQuads(const visualization::Image::ConstPtr& image_msg)
 {
+    if (image_msg == NULL) return;
+    const sensor_msgs::Image *image = &(image_msg->image);
     clearStates();
 
     int q = 0;
+    for (q = 0; q < 2; q++)
     {
         processImage(q, *image);
 
@@ -267,9 +278,9 @@ void MeshDisplayCustom::constructQuads(const sensor_msgs::Image::ConstPtr& image
         float width = 40;
         float height = 80;
 
-        mesh_origin.position.x = 0;
+        mesh_origin.position.x = q * 100;
         mesh_origin.position.y = 0;
-        mesh_origin.position.z = 0;
+        mesh_origin.position.z = q * 10;
 
         Eigen::Quaterniond trans_rot(1, 0, 0, 0);
         trans_rot = Eigen::Quaterniond(0.70710678, 0.0f, 0.0f, -0.70710678f)
@@ -299,27 +310,27 @@ void MeshDisplayCustom::constructQuads(const sensor_msgs::Image::ConstPtr& image
         boost::mutex::scoped_lock lock(mesh_mutex_);
 
         // create our scenenode and material
-        load();
+        load(q);
 
-        if (!manual_objects_)
+        if (!manual_objects_[q])
         {
             static uint32_t count = 0;
             std::stringstream ss;
             ss << "MeshObject" << count++ << "Index" << q;
-            manual_objects_ = context_->getSceneManager()->createManualObject(ss.str());
-            mesh_nodes_->attachObject(manual_objects_);
+            manual_objects_[q] = context_->getSceneManager()->createManualObject(ss.str());
+            mesh_nodes_[q]->attachObject(manual_objects_[q]);
         }
 
         // If we have the same number of tris as previously, just update the object
         if (last_meshes_[q].vertices.size() > 0 && mesh.vertices.size() * 2 == last_meshes_[q].vertices.size())
         {
-            manual_objects_->beginUpdate(0);
+            manual_objects_[q]->beginUpdate(0);
         }
         else    // Otherwise clear it and begin anew
         {
-            manual_objects_->clear();
-            manual_objects_->estimateVertexCount(mesh.vertices.size() * 2);
-            manual_objects_->begin(mesh_materials_->getName(), Ogre::RenderOperation::OT_TRIANGLE_LIST);
+            manual_objects_[q]->clear();
+            manual_objects_[q]->estimateVertexCount(mesh.vertices.size() * 2);
+            manual_objects_[q]->begin(mesh_materials_[q]->getName(), Ogre::RenderOperation::OT_TRIANGLE_LIST);
         }
 
         const std::vector<geometry_msgs::Point>& points = mesh.vertices;
@@ -341,31 +352,40 @@ void MeshDisplayCustom::constructQuads(const sensor_msgs::Image::ConstPtr& image
 
                 for (size_t c = 0; c < 3; c++)
                 {
-                    manual_objects_->position(corners[c]);
-                    manual_objects_->normal(normal);
+                    manual_objects_[q]->position(corners[c]);
+                    manual_objects_[q]->normal(normal);
                 }
             }
         }
 
-        manual_objects_->end();
+        manual_objects_[q]->end();
 
-        mesh_materials_->setCullingMode(Ogre::CULL_NONE);
+        mesh_materials_[q]->setCullingMode(Ogre::CULL_NONE);
 
         last_meshes_[q] = mesh;
     }
 }
 
-void MeshDisplayCustom::updateImage(const sensor_msgs::Image::ConstPtr& image)
+void MeshDisplayCustom::updateImage(const visualization::Image::ConstPtr& image)
 {
     cur_image_ = image;
-    new_image_ = true;
+}
+
+void MeshDisplayCustom::onCmd(const std_msgs::String::ConstPtr &msg)
+{
+    const std::string &cmd = msg->data;
+    if (cmd == "clear")
+    {
+        // TODO
+    }
 }
 
 void MeshDisplayCustom::updateMeshProperties()
 {
+    for (int i = 0; i < 2; i++)
     {
         // update color/alpha
-        Ogre::Technique* technique = mesh_materials_->getTechnique(0);
+        Ogre::Technique* technique = mesh_materials_[i]->getTechnique(0);
         Ogre::Pass* pass = technique->getPass(0);
 
         Ogre::ColourValue self_illumination_color(0.0f, 0.0f, 0.0f, 0.0f);
@@ -387,8 +407,8 @@ void MeshDisplayCustom::updateMeshProperties()
         pass->setSceneBlending(Ogre::SBT_TRANSPARENT_ALPHA);
         pass->setDepthWriteEnabled(false);
 
-        context_->queueRender();
     }
+    context_->queueRender();
 }
 
 void MeshDisplayCustom::updateDisplayImages()
@@ -411,6 +431,9 @@ void MeshDisplayCustom::subscribe()
             image_sub_ = nh_.subscribe("image3d",
                     1, &MeshDisplayCustom::updateImage, this);
             setStatus(StatusProperty::Ok, "Display Images Topic", "ok");
+            
+            cmd_sub_ = nh_.subscribe("image3d_cmd",
+              1, &MeshDisplayCustom::onCmd, this);
         }
         catch (ros::Exception& e)
         {
@@ -424,14 +447,10 @@ void MeshDisplayCustom::unsubscribe()
     image_sub_.shutdown();
 }
 
-void MeshDisplayCustom::load()
+void MeshDisplayCustom::load(int count)
 {
-    if (mesh_nodes_ != NULL)
-        return;
-
-    static int count = 0;
     std::stringstream ss;
-    ss << "MeshNode" << count++;
+    ss << "MeshNode" << count;
     Ogre::MaterialManager& material_manager = Ogre::MaterialManager::getSingleton();
     Ogre::String resource_group_name =  ss.str();
 
@@ -443,8 +462,8 @@ void MeshDisplayCustom::load()
     {
         rg_mgr.createResourceGroup(resource_group_name);
 
-        mesh_materials_ = material_manager.create(material_name, resource_group_name);
-        Ogre::Technique* technique = mesh_materials_->getTechnique(0);
+        mesh_materials_[count] = material_manager.create(material_name, resource_group_name);
+        Ogre::Technique* technique = mesh_materials_[count]->getTechnique(0);
         Ogre::Pass* pass = technique->getPass(0);
 
         Ogre::ColourValue self_illumnation_color(0.0f, 0.0f, 0.0f, border_colors_[3]);
@@ -465,10 +484,11 @@ void MeshDisplayCustom::load()
         pass->setShininess(shininess);
 
         pass->setSceneBlending(Ogre::SBT_TRANSPARENT_ALPHA);
-        mesh_materials_->setCullingMode(Ogre::CULL_NONE);
+        mesh_materials_[count]->setCullingMode(Ogre::CULL_NONE);
     }
 
-    mesh_nodes_ = this->scene_node_->createChildSceneNode();
+    if (mesh_nodes_[count] == NULL)
+        mesh_nodes_[count] = this->scene_node_->createChildSceneNode();
 }
 
 void MeshDisplayCustom::onEnable()
@@ -487,7 +507,7 @@ void MeshDisplayCustom::preRenderTargetUpdate(const Ogre::RenderTargetEvent& evt
 
 void MeshDisplayCustom::update(float wall_dt, float ros_dt)
 {
-    if (cur_image_)
+    if (cur_image_ != NULL)
     {
         // need to run these every frame in case tf has changed,
         // but could detect that.
@@ -508,14 +528,13 @@ void MeshDisplayCustom::update(float wall_dt, float ros_dt)
         updateMeshProperties();
         // TODO(lucasw) do what is necessary for new image, but separate
         // other stuff.
-        new_image_ = false;
     }
 
-    if (textures_ && !image_topic_property_->getTopic().isEmpty())
+    if (textures_[0] && !image_topic_property_->getTopic().isEmpty())
     {
         try
         {
-            updateCamera(textures_->update());
+            updateCamera();
         }
         catch (UnsupportedImageEncoding& e)
         {
@@ -531,12 +550,13 @@ void MeshDisplayCustom::update(float wall_dt, float ros_dt)
     setStatus(StatusProperty::Ok, "Display Image", "ok");
 }
 
-void MeshDisplayCustom::updateCamera(bool update_image)
+void MeshDisplayCustom::updateCamera()
 {
     int index = 0;
-    if (update_image)
+    for (index = 0; index < 2; index++) {
+    if (textures_[index]->update())
     {
-        last_images_[index] = textures_->getImage();
+        last_images_[index] = textures_[index]->getImage();
     }
 
     if (!img_heights_ || !img_widths_ ||
@@ -595,14 +615,14 @@ void MeshDisplayCustom::updateCamera(bool update_image)
     {
         ROS_ERROR("Malformed CameraInfo on camera [%s], width = 0", qPrintable(getName()));
         // use texture size, but have to remove border from the perspective calculations
-        img_width = textures_->getWidth() - 2;
+        img_width = textures_[0]->getWidth() - 2;
     }
 
     if (img_height <= 0)
     {
         ROS_ERROR("Malformed CameraInfo on camera [%s], height = 0", qPrintable(getName()));
         // use texture size, but have to remove border from the perspective calculations
-        img_height = textures_->getHeight() - 2;
+        img_height = textures_[0]->getHeight() - 2;
     }
 
     // if even the texture has 0 size, return
@@ -639,10 +659,10 @@ void MeshDisplayCustom::updateCamera(bool update_image)
         throw "CameraInfo/P resulted in an invalid position calculation (nans or infs)";
     }
 
-    if (projector_nodes_ != NULL)
+    if (projector_nodes_[index] != NULL)
     {
-        projector_nodes_->setPosition(position);
-        projector_nodes_->setOrientation(orientation);
+        projector_nodes_[index]->setPosition(position);
+        projector_nodes_[index]->setOrientation(orientation);
     }
 
     // calculate the projection matrix
@@ -666,27 +686,26 @@ void MeshDisplayCustom::updateCamera(bool update_image)
 
     proj_matrix[3][2] = -1;
 
-    if (decal_frustums_ != NULL)
-        decal_frustums_->setCustomProjectionMatrix(true, proj_matrix);
-
-    // ROS_INFO(" Camera (%f, %f)", proj_matrix[0][0], proj_matrix[1][1]);
-    // ROS_INFO(" Render Panel: %x   Viewport: %x", render_panel_, render_panel_->getViewport());
-
+    if (decal_frustums_[index] != NULL)
+        decal_frustums_[index]->setCustomProjectionMatrix(true, proj_matrix);
 
     setStatus(StatusProperty::Ok, "Time", "ok");
     setStatus(StatusProperty::Ok, "Camera Info", "ok");
 
-    if (mesh_nodes_ != NULL && filter_frustums_.size() == 0 && !mesh_materials_.isNull())
-    {
+    if (filter_frustums_[index] == NULL) {
         createProjector(index);
-
-        addDecalToMaterial(index, mesh_materials_->getName());
+    }
+    if (mesh_nodes_[index] != NULL && !mesh_materials_[index].isNull())
+    {
+        addDecalToMaterial(index, mesh_materials_[index]->getName());
+    }
     }
 }
 
 void MeshDisplayCustom::clear()
 {
-    textures_->clear();
+    for (int i = 0; i < 2; i++)
+        textures_[i]->clear();
 
     context_->queueRender();
 
@@ -708,17 +727,19 @@ void MeshDisplayCustom::processImage(int index, const sensor_msgs::Image& msg)
     cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::RGBA8);
 
     // update image alpha
-    //for(int i = 0; i < cv_ptr->image.rows; i++)
-    //{
-    //  for(int j = 0; j < cv_ptr->image.cols; j++)
-    //  {
-    //      cv::Vec4b& pixel = cv_ptr->image.at<cv::Vec4b>(i,j);
-    //      pixel[0] = 255;
-    //      pixel[1] = 0;
-    //      pixel[2] = 0;
-    //      pixel[3] = 255;
-    //  }
-    //}
+    /*
+    for(int i = 0; i < cv_ptr->image.rows; i++)
+    {
+        for(int j = 0; j < cv_ptr->image.cols; j++)
+        {
+            cv::Vec4b& pixel = cv_ptr->image.at<cv::Vec4b>(i,j);
+            pixel[0] = (i + j) % 256;
+            pixel[1] = 0;
+            pixel[2] = 0;
+            pixel[3] = 255;
+        }
+    }
+    */
 
     // add completely white transparent border to the image so that it won't replicate colored pixels all over the mesh
     cv::Scalar value(255, 255, 255, 0);
@@ -726,10 +747,10 @@ void MeshDisplayCustom::processImage(int index, const sensor_msgs::Image& msg)
     cv::flip(cv_ptr->image, cv_ptr->image, -1);
 
     // Output modified video stream
-    if (textures_ == NULL)
-        textures_ = new ROSImageTexture();
+    if (textures_[index] == NULL)
+        textures_[index] = new ROSImageTexture();
 
-    textures_->addMessage(cv_ptr->toImageMsg());
+    textures_[index]->addMessage(cv_ptr->toImageMsg());
 }
 
 }  // namespace rviz

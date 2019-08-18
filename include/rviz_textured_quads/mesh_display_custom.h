@@ -55,10 +55,12 @@
 #include <rviz/frame_manager.h>
 #include <rviz/image/image_display_base.h>
 #include <rviz/image/ros_image_texture.h>
+#include <visualization/Image.h>
 #include <sensor_msgs/CameraInfo.h>
 #include <sensor_msgs/Image.h>
 #include <shape_msgs/Mesh.h>
 #include <std_msgs/Float64.h>
+#include <std_msgs/String.h>
 #include <tf/message_filter.h>
 #include <tf/tf.h>
 #include <tf/transform_listener.h>
@@ -80,7 +82,43 @@ class FloatProperty;
 class RenderPanel;
 class RosTopicProperty;
 class TfFrameProperty;
+/*
+class MeshImage
+{
+private:
+    shape_msgs::Mesh last_meshes_;
+    geometry_msgs::Pose mesh_poses_;
+    int img_widths_, img_heights_;
+    float physical_widths_, physical_heights_;
+    std::vector<float> border_colors_;
+    float border_sizes_;
 
+    visualization::Image::ConstPtr cur_image_;
+    sensor_msgs::Image::ConstPtr last_images_;
+
+    Ogre::SceneNode* mesh_nodes_;
+    Ogre::ManualObject* manual_objects_;
+    Ogre::MaterialPtr mesh_materials_;
+    ROSImageTexture* textures_;
+
+    Ogre::Frustum* decal_frustums_;
+    // need multiple filters (back, up, down, left, right)
+    Ogre::Frustum* filter_frustums_;
+    Ogre::SceneNode* projector_nodes_;
+
+    void update(float wall_dt, float ros_dt);
+    void updateCamera();
+    void updateMeshProperties();
+    void constructQuads(const visualization::Image::ConstPtr& images);
+    void createProjector(int index);
+    void addDecalToMaterial(int index, const Ogre::String& matName);
+    shape_msgs::Mesh constructMesh(geometry_msgs::Pose mesh_origin, float width, float height, float border_size);
+    void clearStates();
+public:
+    MeshImage();
+    void updateImage(const visualization::Image::ConstPtr& image);
+};
+*/
 /**
  * \class MeshDisplayCustom
  * \brief Uses a pose from topic + offset to render a bounding object with shape, size and color
@@ -104,7 +142,7 @@ private Q_SLOTS:
     void updateDisplayImages();
 
 protected:
-    virtual void load();
+    virtual void load(int index);
 
     // overrides from Display
     virtual void onEnable();
@@ -118,13 +156,14 @@ protected:
 
 private:
     void clear();
-    void updateCamera(bool update_image);
+    void updateCamera();
 
     void createProjector(int index);
     void addDecalToMaterial(int index, const Ogre::String& matName);
 
-    void updateImage(const sensor_msgs::Image::ConstPtr& image);
-    void constructQuads(const sensor_msgs::Image::ConstPtr& images);
+    void onCmd(const std_msgs::String::ConstPtr& msg);
+    void updateImage(const visualization::Image::ConstPtr& image);
+    void constructQuads(const visualization::Image::ConstPtr& images);
 
     shape_msgs::Mesh constructMesh(geometry_msgs::Pose mesh_origin, float width, float height, float border_size);
     void clearStates();
@@ -132,6 +171,7 @@ private:
     RosTopicProperty* image_topic_property_;
     TfFrameProperty* tf_frame_property_;
     ros::Subscriber image_sub_;
+    ros::Subscriber cmd_sub_;
 
     std::vector<shape_msgs::Mesh> last_meshes_;
     std::vector<geometry_msgs::Pose> mesh_poses_;
@@ -142,21 +182,18 @@ private:
 
     ros::NodeHandle nh_;
 
-    bool new_image_;
-    sensor_msgs::Image::ConstPtr cur_image_;
+    visualization::Image::ConstPtr cur_image_;
     std::vector<sensor_msgs::Image::ConstPtr> last_images_;
 
-    Ogre::SceneNode* mesh_nodes_;
-    Ogre::ManualObject* manual_objects_;
-    Ogre::MaterialPtr mesh_materials_;
-    ROSImageTexture* textures_;
+    std::vector<Ogre::SceneNode*> mesh_nodes_;
+    std::vector<Ogre::ManualObject*> manual_objects_;
+    std::vector<Ogre::MaterialPtr> mesh_materials_;
+    std::vector<ROSImageTexture*> textures_;
 
-    Ogre::Frustum* decal_frustums_;
+    std::vector<Ogre::Frustum*> decal_frustums_;
     // need multiple filters (back, up, down, left, right)
     std::vector<Ogre::Frustum*> filter_frustums_;
-    Ogre::SceneNode* projector_nodes_;
-
-    RenderPanel* render_panel_;  // this is the active render panel
+    std::vector<Ogre::SceneNode*> projector_nodes_;
 
     boost::mutex mesh_mutex_;
 };
