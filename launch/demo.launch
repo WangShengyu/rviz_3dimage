@@ -2,8 +2,8 @@
 <launch>
   <arg name="use_static_tf" default="true" />
 
-  <node pkg="rviz" type="rviz" name="rviz_textured_quads"
-      args="-d $(find rviz_textured_quads)/config/rviz_textured_quads.rviz"
+  <node pkg="rviz" type="rviz" name="rviz_3dimage"
+      args="-d $(find rviz_3dimage)/config/rviz_3dimage.rviz"
       output="screen"/>
 
   <node pkg="tf" type="static_transform_publisher" name="quad_broadcaster"

@@ -55,7 +55,7 @@
 #include <rviz/validate_floats.h>
 #include <rviz/view_manager.h>
 #include <rviz/visualization_manager.h>
-#include <rviz_textured_quads/mesh_display_custom.h>
+#include <rviz_3dimage/mesh_display_custom.h>
 #include <sensor_msgs/image_encodings.h>
 #include <string>
 #include <vector>
@@ -159,7 +159,7 @@ void MeshDisplayCustom::addDecalToMaterial(int index, const Ogre::String& matNam
     if (!resource_manager.resourceGroupExists(resource_group_name))
     {
         resource_manager.createResourceGroup(resource_group_name);
-        resource_manager.addResourceLocation(ros::package::getPath("rviz_textured_quads") +
+        resource_manager.addResourceLocation(ros::package::getPath("rviz_3dimage") +
                 "/tests/textures/", "FileSystem", resource_group_name, false);
         resource_manager.initialiseResourceGroup(resource_group_name);
     }
@@ -251,7 +251,7 @@ void MeshDisplayCustom::clearStates()
     }
 }
 
-void MeshDisplayCustom::constructQuads(const visualization::Image::ConstPtr& image_msg)
+void MeshDisplayCustom::constructQuads(const rviz_3dimage::Image::ConstPtr& image_msg)
 {
     if (image_msg == NULL) return;
     const sensor_msgs::Image *image = &(image_msg->image);
@@ -366,7 +366,7 @@ void MeshDisplayCustom::constructQuads(const visualization::Image::ConstPtr& ima
     }
 }
 
-void MeshDisplayCustom::updateImage(const visualization::Image::ConstPtr& image)
+void MeshDisplayCustom::updateImage(const rviz_3dimage::Image::ConstPtr& image)
 {
     cur_image_ = image;
 }

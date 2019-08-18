@@ -55,7 +55,7 @@
 #include <rviz/frame_manager.h>
 #include <rviz/image/image_display_base.h>
 #include <rviz/image/ros_image_texture.h>
-#include <visualization/Image.h>
+#include <rviz_3dimage/Image.h>
 #include <sensor_msgs/CameraInfo.h>
 #include <sensor_msgs/Image.h>
 #include <shape_msgs/Mesh.h>
@@ -137,8 +137,8 @@ public:
 
     virtual void preRenderTargetUpdate(const Ogre::RenderTargetEvent& evt);
 
-private Q_SLOTS:
     void updateMeshProperties();
+private Q_SLOTS:
     void updateDisplayImages();
 
 protected:
@@ -155,6 +155,9 @@ protected:
     virtual void unsubscribe();
 
 private:
+    // std::map<int, MeshImage> mesh_images_;
+    // void setImage(int index, visualization::Image::ConstPtr &image);
+
     void clear();
     void updateCamera();
 
@@ -162,8 +165,8 @@ private:
     void addDecalToMaterial(int index, const Ogre::String& matName);
 
     void onCmd(const std_msgs::String::ConstPtr& msg);
-    void updateImage(const visualization::Image::ConstPtr& image);
-    void constructQuads(const visualization::Image::ConstPtr& images);
+    void updateImage(const rviz_3dimage::Image::ConstPtr& image);
+    void constructQuads(const rviz_3dimage::Image::ConstPtr& images);
 
     shape_msgs::Mesh constructMesh(geometry_msgs::Pose mesh_origin, float width, float height, float border_size);
     void clearStates();
@@ -182,7 +185,7 @@ private:
 
     ros::NodeHandle nh_;
 
-    visualization::Image::ConstPtr cur_image_;
+    rviz_3dimage::Image::ConstPtr cur_image_;
     std::vector<sensor_msgs::Image::ConstPtr> last_images_;
 
     std::vector<Ogre::SceneNode*> mesh_nodes_;
