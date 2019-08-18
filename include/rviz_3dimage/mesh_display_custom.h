@@ -49,7 +49,6 @@
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <image_transport/image_transport.h>
-#include <map>
 #include <message_filters/subscriber.h>
 #include <rviz/display.h>
 #include <rviz/frame_manager.h>
@@ -65,6 +64,9 @@
 #include <tf/tf.h>
 #include <tf/transform_listener.h>
 #include <tf_conversions/tf_eigen.h>
+
+#include <map>
+#include <memory>
 #include <vector>
 
 #endif  // Q_MOC_RUN
@@ -82,10 +84,15 @@ class FloatProperty;
 class RenderPanel;
 class RosTopicProperty;
 class TfFrameProperty;
-/*
+
+class MeshDisplayCustom;
 class MeshImage
 {
 private:
+    MeshDisplayCustom *mesh_display_;
+    int index;
+
+    boost::mutex mesh_mutex_;
     shape_msgs::Mesh last_meshes_;
     geometry_msgs::Pose mesh_poses_;
     int img_widths_, img_heights_;
@@ -93,7 +100,7 @@ private:
     std::vector<float> border_colors_;
     float border_sizes_;
 
-    visualization::Image::ConstPtr cur_image_;
+    rviz_3dimage::Image::ConstPtr cur_image_;
     sensor_msgs::Image::ConstPtr last_images_;
 
     Ogre::SceneNode* mesh_nodes_;
@@ -106,19 +113,23 @@ private:
     Ogre::Frustum* filter_frustums_;
     Ogre::SceneNode* projector_nodes_;
 
-    void update(float wall_dt, float ros_dt);
+    void load();
     void updateCamera();
     void updateMeshProperties();
-    void constructQuads(const visualization::Image::ConstPtr& images);
-    void createProjector(int index);
-    void addDecalToMaterial(int index, const Ogre::String& matName);
+    void constructQuads(const rviz_3dimage::Image::ConstPtr& images);
+    void createProjector();
+    void addDecalToMaterial(const Ogre::String& matName);
     shape_msgs::Mesh constructMesh(geometry_msgs::Pose mesh_origin, float width, float height, float border_size);
     void clearStates();
+    // This is called by incomingMessage().
+    void processImage(const sensor_msgs::Image& msg);
 public:
-    MeshImage();
-    void updateImage(const visualization::Image::ConstPtr& image);
+    MeshImage(MeshDisplayCustom *mesh_display, const rviz_3dimage::Image::ConstPtr &image);
+    ~MeshImage();
+    void update(float wall_dt, float ros_dt);
+    void updateImage(const rviz_3dimage::Image::ConstPtr& image);
+    void clear();
 };
-*/
 /**
  * \class MeshDisplayCustom
  * \brief Uses a pose from topic + offset to render a bounding object with shape, size and color
@@ -127,78 +138,45 @@ class MeshDisplayCustom: public rviz::Display,  public Ogre::RenderTargetListene
 {
     Q_OBJECT
 public:
+    friend class MeshImage;
     MeshDisplayCustom();
     virtual ~MeshDisplayCustom();
 
     // Overrides from Display
     virtual void onInitialize();
-    virtual void update(float wall_dt, float ros_dt);
     virtual void reset();
 
     virtual void preRenderTargetUpdate(const Ogre::RenderTargetEvent& evt);
 
-    void updateMeshProperties();
 private Q_SLOTS:
     void updateDisplayImages();
 
 protected:
-    virtual void load(int index);
 
     // overrides from Display
     virtual void onEnable();
     virtual void onDisable();
 
-    // This is called by incomingMessage().
-    void processImage(int index, const sensor_msgs::Image& msg);
-
     virtual void subscribe();
     virtual void unsubscribe();
 
 private:
-    // std::map<int, MeshImage> mesh_images_;
-    // void setImage(int index, visualization::Image::ConstPtr &image);
+    void update(float wall_dt, float ros_dt);
+    std::map<int, std::shared_ptr<MeshImage>> mesh_images_;
+    void updateImage(const rviz_3dimage::Image::ConstPtr& image);
 
     void clear();
-    void updateCamera();
-
-    void createProjector(int index);
-    void addDecalToMaterial(int index, const Ogre::String& matName);
-
     void onCmd(const std_msgs::String::ConstPtr& msg);
-    void updateImage(const rviz_3dimage::Image::ConstPtr& image);
-    void constructQuads(const rviz_3dimage::Image::ConstPtr& images);
-
-    shape_msgs::Mesh constructMesh(geometry_msgs::Pose mesh_origin, float width, float height, float border_size);
-    void clearStates();
 
     RosTopicProperty* image_topic_property_;
     TfFrameProperty* tf_frame_property_;
     ros::Subscriber image_sub_;
     ros::Subscriber cmd_sub_;
 
-    std::vector<shape_msgs::Mesh> last_meshes_;
-    std::vector<geometry_msgs::Pose> mesh_poses_;
-    int img_widths_, img_heights_;
-    float physical_widths_, physical_heights_;
-    std::vector<float> border_colors_;
-    float border_sizes_;
-
     ros::NodeHandle nh_;
 
     rviz_3dimage::Image::ConstPtr cur_image_;
-    std::vector<sensor_msgs::Image::ConstPtr> last_images_;
 
-    std::vector<Ogre::SceneNode*> mesh_nodes_;
-    std::vector<Ogre::ManualObject*> manual_objects_;
-    std::vector<Ogre::MaterialPtr> mesh_materials_;
-    std::vector<ROSImageTexture*> textures_;
-
-    std::vector<Ogre::Frustum*> decal_frustums_;
-    // need multiple filters (back, up, down, left, right)
-    std::vector<Ogre::Frustum*> filter_frustums_;
-    std::vector<Ogre::SceneNode*> projector_nodes_;
-
-    boost::mutex mesh_mutex_;
 };
 
 }  // namespace rviz
