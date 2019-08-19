@@ -231,17 +231,17 @@ void MeshImage::constructQuads(const rviz_3dimage::Image::ConstPtr& image_msg)
     Ogre::Vector3 position;
     Ogre::Quaternion orientation;
 
-    // TODO: mesh size shall get from subscribe "image3d"
-    float width = 40;
-    float height = 80;
+    float width = image_msg->mesh_width;
+    float height = image_msg->mesh_height;
 
-    mesh_origin.position.x = index * 100;
-    mesh_origin.position.y = 0;
-    mesh_origin.position.z = index * 10;
+    mesh_origin.position.x = image_msg->pose.position.x;
+    mesh_origin.position.y = image_msg->pose.position.y;
+    mesh_origin.position.z = image_msg->pose.position.z;
 
-    Eigen::Quaterniond trans_rot(1, 0, 0, 0);
-    trans_rot = Eigen::Quaterniond(0.70710678, 0.0f, 0.0f, -0.70710678f)
-                * Eigen::Quaterniond(0.70710678, 0.70710678f, 0.0f, 0.0f);
+    const geometry_msgs::Quaternion &rot = image_msg->pose.orientation;
+    Eigen::Quaterniond trans_rot(rot.w, rot.x, rot.y, rot.z);
+    // trans_rot = Eigen::Quaterniond(0.70710678, 0.0f, 0.0f, -0.70710678f)
+                // * Eigen::Quaterniond(0.70710678, 0.70710678f, 0.0f, 0.0f);
                             
 
     Eigen::Quaterniond xz_quat(trans_rot);
