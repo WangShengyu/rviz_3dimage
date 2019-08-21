@@ -101,6 +101,8 @@ private:
     float border_sizes_;
 
     rviz_3dimage::Image::ConstPtr cur_image_;
+    int cur_image_update_count_;
+    const int max_cur_image_update_count_ = 5;
     sensor_msgs::Image::ConstPtr last_images_;
 
     Ogre::SceneNode* mesh_nodes_;

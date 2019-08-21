@@ -221,13 +221,6 @@ void MeshImage::constructQuads(const rviz_3dimage::Image::ConstPtr& image_msg)
 
     geometry_msgs::Pose mesh_origin;
 
-    // TODO(lucasw) get pose from tf
-    std::string frame = mesh_display_->tf_frame_property_->getFrameStd();
-    if (frame == "")
-    {
-        frame = image->header.frame_id;
-    }
-
     Ogre::Vector3 position;
     Ogre::Quaternion orientation;
 
@@ -437,7 +430,10 @@ void MeshImage::update(float wall_dt, float ros_dt)
             mesh_display_->setStatus(StatusProperty::Error, "Display Image", e.c_str());
             return;
         }
-        cur_image_ = NULL;
+        cur_image_update_count_--;
+        if (cur_image_update_count_ <= 0) {
+            cur_image_ = NULL;
+        }
     }
     mesh_display_->setStatus(StatusProperty::Ok, "Display Image", "ok");
 }
@@ -629,6 +625,7 @@ void MeshImage::processImage(const sensor_msgs::Image& msg)
 void MeshImage::updateImage(const rviz_3dimage::Image::ConstPtr& image)
 {
     cur_image_ = image;
+    cur_image_update_count_ = max_cur_image_update_count_;
 }
 
 void MeshImage::clear()
