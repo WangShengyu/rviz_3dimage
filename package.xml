@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package>
-  <name>rviz_textured_quads</name>
+  <name>rviz_3dimage</name>
   <version>0.1.0</version>
   <description>RVIZ Image Mesh Plugin</description>
   <maintainer email="mohit@u.nus.edu">Mohit Shridhar</maintainer>

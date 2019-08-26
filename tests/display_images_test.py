@@ -24,7 +24,7 @@ def pub_image():
 
     image_pub = rospy.Publisher("/targets", Image, queue_size=10)
 
-    texture_path = rospack.get_path('rviz_textured_quads') + '/tests/textures/'
+    texture_path = rospack.get_path('rviz_image3d') + '/tests/textures/'
     img1 = cv2.imread(texture_path + 'bebop_drone.jpg', cv2.IMREAD_COLOR)
     img_msg1 = CvBridge().cv2_to_imgmsg(img1, "bgr8")
 

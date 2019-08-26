@@ -1,9 +1,27 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(rviz_textured_quads)
+project(rviz_3dimage)
 
 ## Find catkin and any catkin packages on which
 ## this package depends at build time
-find_package(catkin REQUIRED COMPONENTS roscpp rospy roslib std_msgs sensor_msgs shape_msgs rviz pluginlib class_loader cv_bridge message_generation geometry_msgs sensor_msgs cmake_modules eigen_conversions roslint rviz)
+find_package(catkin REQUIRED COMPONENTS
+  roscpp
+  rospy
+  roslib
+  std_msgs
+  sensor_msgs
+  shape_msgs
+  rviz
+  pluginlib
+  class_loader
+  cv_bridge
+  message_generation
+  geometry_msgs
+  sensor_msgs
+  cmake_modules
+  eigen_conversions
+  roslint
+  rviz
+)
 
 find_package(Eigen REQUIRED)
 find_package(OpenGL REQUIRED)
@@ -31,22 +49,23 @@ add_definitions(-DQT_NO_KEYWORDS)
 
 # include_directories(SYSTEM "msg_gen/cpp/include")
 
-# add_message_files(
-#   FILES
-# )
+add_message_files(
+  FILES
+  Image.msg
+)
 
-# generate_messages(
-#   DEPENDENCIES
-#   std_msgs
-#   geometry_msgs
-#   sensor_msgs
-# )
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+  sensor_msgs
+  geometry_msgs
+)
 
 
 catkin_package(
 )
 #   LIBRARIES
-#     rviz_textured_quads
+#     rviz_3dimage
 #     ${OPENGL_LIBRARIES}
 #   INCLUDE_DIRS
 #   	src
@@ -81,21 +100,22 @@ include_directories(
 
 if(rviz_QT_VERSION VERSION_LESS "5")
 qt4_wrap_cpp(MOC_FILES
-  include/rviz_textured_quads/mesh_display_custom.h
+  include/rviz_3dimage/mesh_display_custom.h
   )
 else()
 qt5_wrap_cpp(MOC_FILES
-  include/rviz_textured_quads/mesh_display_custom.h
+  include/rviz_3dimage/mesh_display_custom.h
   )
 endif()
 
 include_directories(include ${catkin_INCLUDE_DIRS})
 
-set(TEXTURED_QUAD_LIB rviz_textured_quads)
+set(TEXTURED_QUAD_LIB rviz_3dimage)
 
 add_library(${TEXTURED_QUAD_LIB} src/mesh_display_custom.cpp ${MOC_FILES})
 target_link_libraries(${TEXTURED_QUAD_LIB} ${catkin_LIBRARIES} ${QT_LIBRARIES} ${Eigen_LIBRARIES})
 
+add_dependencies(${TEXTURED_QUAD_LIB} rviz_3dimage_generate_messages_cpp)
 add_dependencies(${TEXTURED_QUAD_LIB} ${catkin_EXPORTED_TARGETS})
 
 install(TARGETS ${TEXTURED_QUAD_LIB}  # ${TEXTURED_QUAD_LIB}_core
@@ -103,7 +123,7 @@ install(TARGETS ${TEXTURED_QUAD_LIB}  # ${TEXTURED_QUAD_LIB}_core
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION})
 
 # install(DIRECTORY textures
-#   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/rviz_textured_quads
+#   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/rviz_3dimage
 # )
 
 install(FILES

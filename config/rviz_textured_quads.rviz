@@ -88,7 +88,7 @@ Visualization Manager:
               {}
       Update Interval: 0
       Value: true
-    - Class: rviz_textured_quads/MeshDisplayCustom
+    - Class: rviz_3dimage/MeshDisplayCustom
       Enabled: true
       Image Topic: /image
       Name: MeshDisplayCustom
