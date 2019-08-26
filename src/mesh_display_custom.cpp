@@ -63,7 +63,7 @@
 namespace rviz
 {
 
-MeshImage::MeshImage(MeshDisplayCustom *mesh_display, const rviz_3dimage::Image::ConstPtr &msg)
+MeshImage::MeshImage(MeshDisplayCustom *mesh_display, const rviz_3dimage::Image::ConstPtr &msg, bool visible)
     : index_(msg->index)
     , mesh_display_(mesh_display)
     , mesh_nodes_(NULL)
@@ -73,9 +73,9 @@ MeshImage::MeshImage(MeshDisplayCustom *mesh_display, const rviz_3dimage::Image:
     , decal_frustums_(NULL)
     , filter_frustums_(NULL)
     , max_cur_image_update_count_(5)
-    , visible_(false)
     , remove_(false)
 {
+    setVisible(visible);
     updateImage(msg);   
 }
 
@@ -695,7 +695,7 @@ void MeshDisplayCustom::updateImage(const rviz_3dimage::Image::ConstPtr& image)
     auto it = mesh_images_.find(index);
     if (it == mesh_images_.end())
     {
-        mesh_images_[index] = std::make_shared<MeshImage>(this, image);
+        mesh_images_[index] = std::make_shared<MeshImage>(this, image, visible_);
     }
     else
     {

@@ -129,7 +129,7 @@ private:
     // This is called by incomingMessage().
     void processImage(const sensor_msgs::Image& msg);
 public:
-    MeshImage(MeshDisplayCustom *mesh_display, const rviz_3dimage::Image::ConstPtr &image);
+    MeshImage(MeshDisplayCustom *mesh_display, const rviz_3dimage::Image::ConstPtr &image, bool visible);
     ~MeshImage();
     void update(float wall_dt, float ros_dt);
     void updateImage(const rviz_3dimage::Image::ConstPtr& image);
