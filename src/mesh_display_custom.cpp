@@ -72,6 +72,7 @@ MeshImage::MeshImage(MeshDisplayCustom *mesh_display, const rviz_3dimage::Image:
     , manual_objects_(NULL)
     , decal_frustums_(NULL)
     , filter_frustums_(NULL)
+    , max_cur_image_update_count_(5)
 {
     updateImage(msg);   
 }
@@ -625,6 +626,7 @@ void MeshImage::processImage(const sensor_msgs::Image& msg)
 void MeshImage::updateImage(const rviz_3dimage::Image::ConstPtr& image)
 {
     cur_image_ = image;
+    // ROS_INFO("%d", image->index);
     cur_image_update_count_ = max_cur_image_update_count_;
 }
 
@@ -710,11 +712,11 @@ void MeshDisplayCustom::subscribe()
         try
         {
             image_sub_ = nh_.subscribe("image3d",
-                    1, &MeshDisplayCustom::updateImage, this);
+                    1000, &MeshDisplayCustom::updateImage, this);
             setStatus(StatusProperty::Ok, "Display Images Topic", "ok");
             
             cmd_sub_ = nh_.subscribe("image3d_cmd",
-              1, &MeshDisplayCustom::onCmd, this);
+              1000, &MeshDisplayCustom::onCmd, this);
         }
         catch (ros::Exception& e)
         {
