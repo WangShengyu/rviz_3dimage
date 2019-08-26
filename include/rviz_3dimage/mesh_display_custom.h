@@ -90,7 +90,9 @@ class MeshImage
 {
 private:
     MeshDisplayCustom *mesh_display_;
-    int index;
+    int index_;
+    bool visible_;
+    bool remove_;
 
     boost::mutex mesh_mutex_;
     shape_msgs::Mesh last_meshes_;
@@ -115,6 +117,7 @@ private:
     Ogre::Frustum* filter_frustums_;
     Ogre::SceneNode* projector_nodes_;
 
+    void refreshVisible();
     void load();
     void updateCamera();
     void updateMeshProperties();
@@ -130,7 +133,8 @@ public:
     ~MeshImage();
     void update(float wall_dt, float ros_dt);
     void updateImage(const rviz_3dimage::Image::ConstPtr& image);
-    void clear();
+    void setVisible(bool visible);
+    void remove(bool val);
 };
 /**
  * \class MeshDisplayCustom
@@ -170,6 +174,7 @@ private:
     void clear();
     void onCmd(const std_msgs::String::ConstPtr& msg);
 
+    bool visible_;
     RosTopicProperty* image_topic_property_;
     TfFrameProperty* tf_frame_property_;
     ros::Subscriber image_sub_;

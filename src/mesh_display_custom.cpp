@@ -64,7 +64,7 @@ namespace rviz
 {
 
 MeshImage::MeshImage(MeshDisplayCustom *mesh_display, const rviz_3dimage::Image::ConstPtr &msg)
-    : index(msg->index)
+    : index_(msg->index)
     , mesh_display_(mesh_display)
     , mesh_nodes_(NULL)
     , textures_(NULL)
@@ -73,6 +73,8 @@ MeshImage::MeshImage(MeshDisplayCustom *mesh_display, const rviz_3dimage::Image:
     , decal_frustums_(NULL)
     , filter_frustums_(NULL)
     , max_cur_image_update_count_(5)
+    , visible_(false)
+    , remove_(false)
 {
     updateImage(msg);   
 }
@@ -214,7 +216,6 @@ void MeshImage::clearStates()
 
 void MeshImage::constructQuads(const rviz_3dimage::Image::ConstPtr& image_msg)
 {
-    int index = image_msg->index;
     const sensor_msgs::Image *image = &(image_msg->image);
     clearStates();
 
@@ -267,8 +268,9 @@ void MeshImage::constructQuads(const rviz_3dimage::Image::ConstPtr& image_msg)
     {
         static uint32_t count = 0;
         std::stringstream ss;
-        ss << "MeshObject" << count++ << "Index" << index;
+        ss << "MeshObject" << count++ << "Index" << index_;
         manual_objects_ = mesh_display_->context_->getSceneManager()->createManualObject(ss.str());
+        refreshVisible();
         mesh_nodes_->attachObject(manual_objects_);
     }
 
@@ -345,7 +347,7 @@ void MeshImage::updateMeshProperties()
 void MeshImage::load()
 {
     std::stringstream ss;
-    ss << "MeshNode" << index;
+    ss << "MeshNode" << index_;
     Ogre::MaterialManager& material_manager = Ogre::MaterialManager::getSingleton();
     Ogre::String resource_group_name = ss.str();
 
@@ -626,17 +628,33 @@ void MeshImage::processImage(const sensor_msgs::Image& msg)
 void MeshImage::updateImage(const rviz_3dimage::Image::ConstPtr& image)
 {
     cur_image_ = image;
-    // ROS_INFO("%d", image->index);
     cur_image_update_count_ = max_cur_image_update_count_;
+    remove(false);
 }
 
-void MeshImage::clear()
+void MeshImage::remove(bool val)
 {
-    // TODO
+    remove_ = val;
+    refreshVisible();
+}
+
+void MeshImage::refreshVisible()
+{
+    if (manual_objects_ != NULL)
+    {
+        manual_objects_->setVisible(visible_ && !remove_);
+    }
+}
+
+void MeshImage::setVisible(bool visible)
+{
+    visible_ = visible;
+    refreshVisible();
 }
 
 MeshDisplayCustom::MeshDisplayCustom()
     : Display()
+    , visible_(false)
 {
     image_topic_property_ = new RosTopicProperty("Image Topic", "",
             QString::fromStdString(ros::message_traits::datatype<sensor_msgs::Image>()),
@@ -688,9 +706,28 @@ void MeshDisplayCustom::updateImage(const rviz_3dimage::Image::ConstPtr& image)
 void MeshDisplayCustom::onCmd(const std_msgs::String::ConstPtr &msg)
 {
     const std::string &cmd = msg->data;
-    if (cmd == "clear")
+    if (cmd == "hide")
     {
-        // TODO
+        visible_ = false;
+        for (size_t i = 0; i < mesh_images_.size(); i++)
+        {
+            mesh_images_[i]->setVisible(false);
+        }
+    }
+    else if (cmd == "show")
+    {
+        visible_ = true;
+        for (size_t i = 0; i < mesh_images_.size(); i++)
+        {
+            mesh_images_[i]->setVisible(true);
+        }
+    }
+    else if (cmd == "clear")
+    {
+        for (size_t i = 0; i < mesh_images_.size(); i++)
+        {
+            mesh_images_[i]->remove(true);
+        }
     }
 }
 
@@ -745,14 +782,8 @@ void MeshDisplayCustom::preRenderTargetUpdate(const Ogre::RenderTargetEvent& evt
 {
 }
 
-
 void MeshDisplayCustom::clear()
 {
-    for (auto it = mesh_images_.begin(); it != mesh_images_.end(); it++)
-    {
-        it->second->clear();
-    }
-
     context_->queueRender();
 
     setStatus(StatusProperty::Warn, "Image", "No Image received");
