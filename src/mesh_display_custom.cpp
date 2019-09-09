@@ -57,6 +57,9 @@
 #include <rviz/visualization_manager.h>
 #include <rviz_3dimage/mesh_display_custom.h>
 #include <sensor_msgs/image_encodings.h>
+
+#include <boost/algorithm/string.hpp>
+
 #include <string>
 #include <vector>
 
@@ -65,6 +68,7 @@ namespace rviz
 
 MeshImage::MeshImage(MeshDisplayCustom *mesh_display, const rviz_3dimage::Image::ConstPtr &msg, bool visible)
     : index_(msg->index)
+    , group_name_(msg->group_name)
     , mesh_display_(mesh_display)
     , mesh_nodes_(NULL)
     , textures_(NULL)
@@ -347,13 +351,13 @@ void MeshImage::updateMeshProperties()
 void MeshImage::load()
 {
     std::stringstream ss;
-    ss << "MeshNode" << index_;
+    ss << "MeshNode_" << group_name_ << "_" << index_;
     Ogre::MaterialManager& material_manager = Ogre::MaterialManager::getSingleton();
     Ogre::String resource_group_name = ss.str();
 
     Ogre::ResourceGroupManager& rg_mgr = Ogre::ResourceGroupManager::getSingleton();
 
-    Ogre::String material_name = resource_group_name + "MeshMaterial";
+    Ogre::String material_name = resource_group_name + "_MeshMaterial";
 
     if (!rg_mgr.resourceGroupExists(resource_group_name))
     {
@@ -629,12 +633,18 @@ void MeshImage::updateImage(const rviz_3dimage::Image::ConstPtr& image)
 {
     cur_image_ = image;
     cur_image_update_count_ = max_cur_image_update_count_;
-    remove(false);
+    resume();
 }
 
-void MeshImage::remove(bool val)
+void MeshImage::resume()
 {
-    remove_ = val;
+    remove_ = false;
+    refreshVisible();
+}
+
+void MeshImage::remove()
+{
+    remove_ = true;
     refreshVisible();
 }
 
@@ -654,7 +664,7 @@ void MeshImage::setVisible(bool visible)
 
 MeshDisplayCustom::MeshDisplayCustom()
     : Display()
-    , visible_(false)
+    , default_visible_(false)
 {
     image_topic_property_ = new RosTopicProperty("Image Topic", "",
             QString::fromStdString(ros::message_traits::datatype<sensor_msgs::Image>()),
@@ -677,9 +687,13 @@ MeshDisplayCustom::~MeshDisplayCustom()
 
 void MeshDisplayCustom::update(float wall_dt, float ros_dt)
 {
-    for (auto it = mesh_images_.begin(); it != mesh_images_.end(); it++)
+    for (auto group_it = groups_.begin(); group_it != groups_.end(); group_it++)
     {
-        it->second->update(wall_dt, ros_dt);
+        Group &group = group_it->second;
+        for (auto it = group.mesh_images.begin(); it != group.mesh_images.end(); it++)
+        {
+            it->second->update(wall_dt, ros_dt);
+        }
     }
 }
 
@@ -691,11 +705,16 @@ void MeshDisplayCustom::onInitialize()
 
 void MeshDisplayCustom::updateImage(const rviz_3dimage::Image::ConstPtr& image)
 {
-    int index = image->index;
-    auto it = mesh_images_.find(index);
-    if (it == mesh_images_.end())
+    if (groups_.find(image->group_name) == groups_.end())
     {
-        mesh_images_[index] = std::make_shared<MeshImage>(this, image, visible_);
+        groups_[image->group_name].visible = default_visible_;
+    }
+    Group &group = groups_[image->group_name];
+    int index = image->index;
+    auto it = group.mesh_images.find(index);
+    if (it == group.mesh_images.end())
+    {
+        group.mesh_images[index] = std::make_shared<MeshImage>(this, image, group.visible);
     }
     else
     {
@@ -705,28 +724,60 @@ void MeshDisplayCustom::updateImage(const rviz_3dimage::Image::ConstPtr& image)
 
 void MeshDisplayCustom::onCmd(const std_msgs::String::ConstPtr &msg)
 {
-    const std::string &cmd = msg->data;
-    if (cmd == "hide")
+    std::string raw_cmd = msg->data;
+    std::vector<std::string> cmds;
+    boost::split(cmds, raw_cmd, boost::is_any_of("|"));
+    
+    if (cmds[0] == "hide" || cmds[0] == "show")
     {
-        visible_ = false;
-        for (size_t i = 0; i < mesh_images_.size(); i++)
+        auto setGroupVisible = [](Group &group, bool show)
         {
-            mesh_images_[i]->setVisible(false);
+            group.visible = show;
+            for (auto it = group.mesh_images.begin(); it != group.mesh_images.end(); it++)
+            {
+                it->second->setVisible(show);
+            }
+        };
+        bool show = cmds[0] == "show";
+        if (cmds.size() == 1)
+        {
+            default_visible_ = show;
+            for (auto it = groups_.begin(); it != groups_.end(); it++)
+            {
+                setGroupVisible(it->second, show);
+            }
+        }
+        else
+        {
+            std::string group_name = cmds[1];
+            setGroupVisible(groups_[group_name], show);
         }
     }
-    else if (cmd == "show")
+    else if (cmds[0] == "clear")
     {
-        visible_ = true;
-        for (size_t i = 0; i < mesh_images_.size(); i++)
+        auto clearGroup = [](const std::map<std::string, Group>::iterator &it)
         {
-            mesh_images_[i]->setVisible(true);
+            Group &group = it->second;
+            for (auto it = group.mesh_images.begin(); it != group.mesh_images.end(); it++)
+            {
+                it->second->remove();
+            }
+        };
+        if (cmds.size() == 1)
+        {
+            for (auto it = groups_.begin(); it != groups_.end(); it++)
+            {
+                clearGroup(it);
+            }
         }
-    }
-    else if (cmd == "clear")
-    {
-        for (size_t i = 0; i < mesh_images_.size(); i++)
+        else
         {
-            mesh_images_[i]->remove(true);
+            std::string group_name = cmds[1];
+            auto it = groups_.find(group_name);
+            if (it != groups_.end())
+            {
+                clearGroup(it);
+            }
         }
     }
 }

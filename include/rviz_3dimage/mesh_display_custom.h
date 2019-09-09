@@ -90,6 +90,7 @@ class MeshImage
 {
 private:
     MeshDisplayCustom *mesh_display_;
+    std::string group_name_;
     int index_;
     bool visible_;
     bool remove_;
@@ -128,13 +129,14 @@ private:
     void clearStates();
     // This is called by incomingMessage().
     void processImage(const sensor_msgs::Image& msg);
+    void resume();
 public:
     MeshImage(MeshDisplayCustom *mesh_display, const rviz_3dimage::Image::ConstPtr &image, bool visible);
     ~MeshImage();
     void update(float wall_dt, float ros_dt);
     void updateImage(const rviz_3dimage::Image::ConstPtr& image);
     void setVisible(bool visible);
-    void remove(bool val);
+    void remove();
 };
 /**
  * \class MeshDisplayCustom
@@ -167,14 +169,18 @@ protected:
     virtual void unsubscribe();
 
 private:
+    struct Group {
+        bool visible;
+        std::map<int, std::shared_ptr<MeshImage>> mesh_images;
+    };
+    std::map<std::string, Group> groups_;
+    bool default_visible_;
     void update(float wall_dt, float ros_dt);
-    std::map<int, std::shared_ptr<MeshImage>> mesh_images_;
     void updateImage(const rviz_3dimage::Image::ConstPtr& image);
 
     void clear();
     void onCmd(const std_msgs::String::ConstPtr& msg);
 
-    bool visible_;
     RosTopicProperty* image_topic_property_;
     TfFrameProperty* tf_frame_property_;
     ros::Subscriber image_sub_;
